@@ -15,5 +15,6 @@ public enum SpeechLog {
     public static let transcriber = Logger(subsystem: subsystem, category: "Transcriber")
     public static let legacy = Logger(subsystem: subsystem, category: "LegacySpeech")
     public static let modern = Logger(subsystem: subsystem, category: "ModernSpeech")
-    public static let viewModel = Logger(subsystem: subsystem, category: "ViewModel")
+    public static let store = Logger(subsystem: subsystem, category: "Store")
+    public static let viewModel = store
 }

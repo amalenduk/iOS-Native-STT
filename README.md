@@ -1,8 +1,8 @@
-# Native Apple Speech Transcription (iOS 17+ & iOS 26+)
+# Native Apple Speech Transcription (iOS 16+ & iOS 26+)
 
 A lightweight, 100% native iOS speech-to-text implementation with **zero third-party dependencies** (no Whisper.cpp, no external C/C++ libraries, no multi-hundred-megabyte GGUF models).
 
-The project features a **dual-engine architecture** managed through **Dependency Injection**, allowing developers to run and test both Apple's next-generation **Modern SpeechAnalyzer** (iOS 26+) and the battle-tested **Legacy SFSpeechRecognizer** (iOS 17+) side by side with an on-the-fly UI switch toggle.
+The project features a **Clean Swift Store architecture** (`SpeechTranscriptionStore: ObservableObject`) with **Dependency Injection**, supporting **iOS 16+** without requiring the iOS 17 `@Observable` macro. It allows developers to run and test both Apple's next-generation **Modern SpeechAnalyzer** (iOS 26+) and the battle-tested **Legacy SFSpeechRecognizer** (iOS 16+) side by side with an on-the-fly UI switch toggle.
 
 ---
 
@@ -37,7 +37,7 @@ The project features a **dual-engine architecture** managed through **Dependency
 | Feature / Metric | Modern Engine (`SpeechAnalyzer`) | Legacy Engine (`SFSpeechRecognizer`) |
 | :--- | :--- | :--- |
 | **Primary Framework APIs** | `SpeechTranscriber`, `SpeechAnalyzer`, `AssetInventory` | `SFSpeechRecognizer`, `SFSpeechAudioBufferRecognitionRequest`, `SFSpeechRecognitionTask` |
-| **Minimum iOS Target** | **iOS 26.0+** (`@available(iOS 26.0, macOS 26.0, *)`) | **iOS 10.0+** (App deployment target: **iOS 17.0**) |
+| **Minimum iOS Target** | **iOS 26.0+** (`@available(iOS 26.0, macOS 26.0, *)`) | **iOS 10.0+** (App deployment target: **iOS 16.0**) |
 | **Execution Location** | **100% On-Device** (Apple Neural Engine + CoreML) | **Cloud by default** (Apple Servers) / Partial On-Device on select hardware |
 | **Internet Requirement** | **Offline after initial model download**.<br>Requires internet connection once to download the on-device language pack via `AssetInventory` (if not pre-installed by the OS). | **Requires active Internet connection by default**.<br>Can attempt `requiresOnDeviceRecognition = true`, but fails if the language or hardware does not support offline recognition. |
 | **Session Duration Limit** | **No time limit**.<br>Continuous streaming dictation without arbitrary timeouts because execution is local to device hardware. | **~60 seconds hard limit**.<br>Apple servers terminate recognition after approximately 1 minute of continuous speech with a timeout/quota error unless the session is manually recycled. |
@@ -205,6 +205,46 @@ When toggled:
 2. The active engine swaps from `ModernSpeechTranscriber` to `LegacySpeechTranscriber` (or vice-versa).
 3. The language picker dynamically refreshes to display the exact supported locales for that engine (30 vs 63).
 4. Audio recording resumes seamlessly if it was active.
+
+### 5. Drop-In Compact Speech Bar (`CompactSpeechBarView` & `CompactSpeechBarLegacyView`)
+Self-contained, drop-in components designed for existing apps and editable text views (`UITextView` or `TextEditor`):
+* **Compact Pill Layout**: Language selector button (e.g. "EN", "HI"), live listening indicator / volatile preview, and animated record button.
+* **Self-Contained Error Alert**: Displays `.alert` popup automatically on errors without leaking boilerplate to host views.
+* **Native Apple Notes Dictation Behavior**: Users can edit text with the keyboard at any time, move the cursor anywhere, and dictate speech directly into the active cursor position. Volatile interim words update in-place without clobbering manual edits.
+
+#### SwiftUI Example (`NotesEditorExampleView.swift`)
+```swift
+struct MyNoteView: View {
+    @State private var noteText: String = "Existing typed text..."
+    
+    var body: some View {
+        VStack {
+            TextEditor(text: $noteText)
+            
+            // Drop-in compact bar:
+            CompactSpeechBarView(text: $noteText)
+                .padding(.horizontal)
+        }
+    }
+}
+```
+
+#### UIKit Legacy Example (`LegacyNotesEditorViewController.swift`)
+```swift
+// Drop-in above keyboard as inputAccessoryView:
+let speechBar = CompactSpeechBarLegacyView(targetTextView: self.textView)
+
+// Or using closures (custom handling):
+let speechBarWithClosures = CompactSpeechBarLegacyView { [weak self] fullText in
+    print("Full speech text: \(fullText)")
+} onAppendDelta: { [weak self] deltaChunk in
+    self?.textView.insertText(deltaChunk)
+}
+
+let hostingController = UIHostingController(rootView: speechBar)
+hostingController.view.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: 54)
+textView.inputAccessoryView = hostingController.view
+```
 
 ---
 

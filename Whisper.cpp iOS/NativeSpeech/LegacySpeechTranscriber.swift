@@ -10,17 +10,14 @@ import Foundation
 import Speech
 
 public enum LegacyTranscriptionError: LocalizedError {
-    case speechRecognitionDenied
-    case speechRecognitionRestricted
+    case speechRecognitionUnauthorized
     case recognizerUnavailable
     case recognitionRequestFailed(String)
     
     public var errorDescription: String? {
         switch self {
-        case .speechRecognitionDenied:
-            return "Speech recognition permission was denied. Please allow it in Settings."
-        case .speechRecognitionRestricted:
-            return "Speech recognition is restricted on this device."
+        case .speechRecognitionUnauthorized:
+            return "Speech recognition permission is not authorized. Please enable it in Settings."
         case .recognizerUnavailable:
             return "Speech recognizer is currently unavailable for the chosen language."
         case .recognitionRequestFailed(let reason):
@@ -29,7 +26,6 @@ public enum LegacyTranscriptionError: LocalizedError {
     }
 }
 
-@Observable
 @MainActor
 public final class LegacySpeechTranscriber: SpeechTranscriptionService {
     
@@ -37,15 +33,17 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     
-    // Published states for UI
+    // States for Store sync
     public var finalizedText: String = ""
     public var volatileText: String = ""
     public var tokens: [SpeechTranscriptionToken] = []
     public var downloadProgress: Progress? = nil
     public var isDownloadingModel: Bool = false
+    public var onError: (@Sendable (Error) -> Void)? = nil
+    public var onTranscriptUpdate: (@Sendable () -> Void)? = nil
     
     public var engineDescription: String {
-        "Apple SFSpeechRecognizer (iOS 17+)"
+        "Apple SFSpeechRecognizer (iOS 16+)"
     }
     
     public var fullTranscript: String {
@@ -59,14 +57,10 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
     public init() {}
     
     public func setUpTranscriber(locale: Locale) async throws {
-        // 1. Verify Speech Recognition Authorization
-        let status = await requestSpeechAuthorization()
-        guard status == .authorized else {
-            if status == .restricted {
-                throw LegacyTranscriptionError.speechRecognitionRestricted
-            } else {
-                throw LegacyTranscriptionError.speechRecognitionDenied
-            }
+        // 1. Check authorization status
+        let authStatus = await requestSpeechAuthorization()
+        guard authStatus == .authorized else {
+            throw LegacyTranscriptionError.speechRecognitionUnauthorized
         }
         
         // 2. Resolve matching locale
@@ -83,12 +77,11 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
         }
         self.speechRecognizer = recognizer
         
-        // 3. Configure audio buffer recognition request
+        // 3. Configure audio buffer request
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        request.taskHint = .dictation
         
-        // Enable on-device recognition when available to minimize latency
+        // Attempt on-device recognition if available for speed and privacy
         if recognizer.supportsOnDeviceRecognition {
             request.requiresOnDeviceRecognition = true
         } else {
@@ -125,10 +118,13 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
                 } else {
                     self.volatileText = formatted
                 }
+                
+                self.onTranscriptUpdate?()
             }
             
             if let error {
                 SpeechLog.legacy.debug("SFSpeechRecognizer task notification: \(error.localizedDescription)")
+                self.onError?(error)
             }
         }
     }
@@ -156,6 +152,7 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
         finalizedText = ""
         volatileText = ""
         tokens = []
+        onTranscriptUpdate?()
     }
     
     private func requestSpeechAuthorization() async -> SFSpeechRecognizerAuthorizationStatus {
@@ -166,4 +163,3 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
         }
     }
 }
-

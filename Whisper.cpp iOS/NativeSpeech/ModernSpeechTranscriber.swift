@@ -15,6 +15,7 @@ public enum ModernTranscriptionError: LocalizedError {
     case failedToSetupRecognitionStream
     case invalidAudioDataType
     case localeNotSupported
+    case insufficientStorage(String)
     case recognitionFailed(String)
     
     public var errorDescription: String? {
@@ -27,14 +28,18 @@ public enum ModernTranscriptionError: LocalizedError {
             return "Unsupported audio format for SpeechAnalyzer."
         case .localeNotSupported:
             return "This language/locale is not supported on-device by SpeechAnalyzer."
+        case .insufficientStorage(let detail):
+            return "Device Storage Full: On-device speech recognition requires free disk space to compile neural models (\(detail)). Please free up storage in iPhone Settings, or switch to the Legacy Engine (cloud)."
         case .recognitionFailed(let reason):
+            if reason.localizedCaseInsensitiveContains("No space left on device") || reason.contains("201") {
+                return "Device Storage Full: On-device speech recognition requires free disk space to compile neural models. Please free up storage in iPhone Settings, or switch to the Legacy Engine (cloud)."
+            }
             return "Speech recognition failed: \(reason)"
         }
     }
 }
 
 @available(iOS 26.0, macOS 26.0, *)
-@Observable
 @MainActor
 public final class ModernSpeechTranscriber: SpeechTranscriptionService {
     
@@ -47,12 +52,14 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
     private let converter = NativeBufferConverter()
     private var analyzerFormat: AVAudioFormat?
     
-    // Published states for UI
+    // States for Store sync
     public var finalizedText: String = ""
     public var volatileText: String = ""
     public var tokens: [SpeechTranscriptionToken] = []
     public var downloadProgress: Progress? = nil
     public var isDownloadingModel: Bool = false
+    public var onError: (@Sendable (Error) -> Void)? = nil
+    public var onTranscriptUpdate: (@Sendable () -> Void)? = nil
     
     public var engineDescription: String {
         "Apple SpeechAnalyzer (iOS 26+)"
@@ -69,7 +76,10 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
     public init() {}
     
     public func setUpTranscriber(locale: Locale) async throws {
-        // Resolve matching locale among supported
+        // 0. Clean temporary directory of lingering cache files
+        clearAppTemporaryDirectory()
+        
+        // 1. Resolve matching locale among supported
         let supported = await SpeechTranscriber.supportedLocales
         let supportedIDs = supported.map { $0.identifier(.bcp47) }
         let resolvedID = SpeechLocaleHelper.findBestMatchingLocale(
@@ -78,6 +88,24 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         )
         let targetLocale = Locale(identifier: resolvedID)
         
+        // 2. Release previously reserved/allocated locales (e.g. es_US) so slots are clean
+        await releaseAllReservedLocales()
+        
+        // 3. Allocate and reserve targetLocale with AssetInventory
+        do {
+            _ = try await AssetInventory.reserve(locale: targetLocale)
+            SpeechLog.modern.info("Reserved locale in AssetInventory: \(targetLocale.identifier(.bcp47))")
+        } catch {
+            SpeechLog.modern.error("AssetInventory.reserve failed: \(error.localizedDescription)")
+            if error.localizedDescription.localizedCaseInsensitiveContains("No space left on device") {
+                throw ModernTranscriptionError.insufficientStorage(targetLocale.identifier(.bcp47))
+            }
+        }
+        
+        // 4. Ensure model is installed, or download it if needed
+        try await ensureModel(locale: targetLocale)
+        
+        // 5. Instantiate transcriber and analyzer with the now-allocated locale
         let transcriber = SpeechTranscriber(
             locale: targetLocale,
             transcriptionOptions: [],
@@ -88,8 +116,6 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.analyzer = analyzer
-        
-        try await ensureModel(transcriber: transcriber, locale: targetLocale)
         
         self.analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
         
@@ -120,13 +146,31 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
                     } else {
                         self.volatileText = text
                     }
+                    
+                    self.onTranscriptUpdate?()
                 }
             } catch {
                 SpeechLog.modern.error("SpeechAnalyzer recognition stream error: \(error.localizedDescription)")
+                let desc = error.localizedDescription
+                let isNoSpace = desc.localizedCaseInsensitiveContains("No space left on device")
+                    || (error as NSError).domain == "EARErrorDomain" && (error as NSError).code == 201
+                let reported: Error = isNoSpace
+                    ? ModernTranscriptionError.insufficientStorage(targetLocale.identifier(.bcp47))
+                    : error
+                self?.onError?(reported)
             }
         }
         
-        try await analyzer.start(inputSequence: stream)
+        do {
+            try await analyzer.start(inputSequence: stream)
+        } catch {
+            let desc = error.localizedDescription
+            if desc.localizedCaseInsensitiveContains("No space left on device")
+                || (error as NSError).domain == "EARErrorDomain" && (error as NSError).code == 201 {
+                throw ModernTranscriptionError.insufficientStorage(targetLocale.identifier(.bcp47))
+            }
+            throw error
+        }
     }
     
     public func streamAudioBuffer(_ buffer: AVAudioPCMBuffer) throws {
@@ -144,21 +188,28 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         inputBuilder = nil
         inputSequence = nil
         
-        try await analyzer?.finalizeAndFinishThroughEndOfInput()
+        try? await analyzer?.finalizeAndFinishThroughEndOfInput()
         recognizerTask?.cancel()
         recognizerTask = nil
         converter.reset()
+        
+        self.analyzer = nil
+        self.transcriber = nil
+        
+        // Release locale reservations to prevent holding allocation slots
+        await releaseAllReservedLocales()
     }
     
     public func clear() {
         finalizedText = ""
         volatileText = ""
         tokens = []
+        onTranscriptUpdate?()
     }
     
     // MARK: - Model Availability & Download
     
-    private func ensureModel(transcriber: SpeechTranscriber, locale: Locale) async throws {
+    private func ensureModel(locale: Locale) async throws {
         guard await supported(locale: locale) else {
             throw ModernTranscriptionError.localeNotSupported
         }
@@ -167,7 +218,7 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
             return
         }
         
-        try await downloadIfNeeded(for: transcriber)
+        try await downloadIfNeeded(locale: locale)
     }
     
     private func supported(locale: Locale) async -> Bool {
@@ -180,14 +231,44 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         return installed.map { $0.identifier(.bcp47) }.contains(locale.identifier(.bcp47))
     }
     
-    private func downloadIfNeeded(for module: SpeechTranscriber) async throws {
+    private func downloadIfNeeded(locale: Locale) async throws {
         isDownloadingModel = true
-        defer { isDownloadingModel = false }
+        onTranscriptUpdate?()
+        defer {
+            isDownloadingModel = false
+            onTranscriptUpdate?()
+        }
         
-        if let downloader = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
+        let dummyModule = SpeechTranscriber(
+            locale: locale,
+            transcriptionOptions: [],
+            reportingOptions: [],
+            attributeOptions: []
+        )
+        if let downloader = try await AssetInventory.assetInstallationRequest(supporting: [dummyModule]) {
             self.downloadProgress = downloader.progress
             try await downloader.downloadAndInstall()
         }
     }
+    
+    private func releaseAllReservedLocales() async {
+        let reserved = await AssetInventory.reservedLocales
+        for loc in reserved {
+            await AssetInventory.release(reservedLocale: loc)
+        }
+    }
+    
+    private func clearAppTemporaryDirectory() {
+        let fileManager = FileManager.default
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
+        if let items = try? fileManager.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil) {
+            for item in items {
+                try? fileManager.removeItem(at: item)
+            }
+        }
+        if let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            let speechCache = cacheDir.appendingPathComponent("SpeechModelCache")
+            try? fileManager.removeItem(at: speechCache)
+        }
+    }
 }
-

@@ -9,10 +9,10 @@ import SwiftUI
 
 struct NativeSpeechContentView: View {
     
-    @Bindable var viewModel: NativeSpeechViewModel
+    @ObservedObject var store: SpeechTranscriptionStore
     
-    init(viewModel: NativeSpeechViewModel) {
-        self.viewModel = viewModel
+    init(store: SpeechTranscriptionStore) {
+        self.store = store
     }
     
     var body: some View {
@@ -22,19 +22,19 @@ struct NativeSpeechContentView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 6) {
-                            Image(systemName: viewModel.selectedEngineMode == .modern ? "bolt.badge.sparkle" : "clock.arrow.circlepath")
-                                .foregroundStyle(viewModel.selectedEngineMode == .modern ? .blue : .orange)
+                            Image(systemName: store.selectedEngineMode == .modern ? "bolt.badge.sparkle" : "clock.arrow.circlepath")
+                                .foregroundStyle(store.selectedEngineMode == .modern ? .blue : .orange)
                             
-                            Text(viewModel.selectedEngineMode == .modern ? "Modern Engine (iOS 26+)" : "Legacy Engine (SFSpeech)")
+                            Text(store.selectedEngineMode == .modern ? "Modern Engine (iOS 26+)" : "Legacy Engine (SFSpeech)")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
                         
-                        Text(viewModel.selectedEngineMode == .modern ? "SpeechAnalyzer & Foundation Transcriber" : "SFSpeechRecognizer Audio Stream")
+                        Text(store.selectedEngineMode == .modern ? "SpeechAnalyzer & Foundation Transcriber" : "SFSpeechRecognizer Audio Stream")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         
-                        if !viewModel.isModernEngineSupported {
+                        if !store.isModernEngineSupported {
                             Text("Modern engine requires iOS 26 or later")
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
@@ -43,9 +43,9 @@ struct NativeSpeechContentView: View {
                     
                     Spacer()
                     
-                    Toggle("", isOn: $viewModel.isUsingModernEngine)
+                    Toggle("", isOn: $store.isUsingModernEngine)
                         .labelsHidden()
-                        .disabled(!viewModel.isModernEngineSupported)
+                        .disabled(!store.isModernEngineSupported)
                 }
                 .padding(12)
                 .background(
@@ -58,7 +58,7 @@ struct NativeSpeechContentView: View {
                 )
                 
                 // Error Banner / Display
-                if let errorMessage = viewModel.errorMessage {
+                if let errorMessage = store.errorMessage {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.red)
@@ -77,7 +77,7 @@ struct NativeSpeechContentView: View {
                         Spacer()
                         
                         Button {
-                            viewModel.clearError()
+                            store.clearError()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
@@ -96,7 +96,7 @@ struct NativeSpeechContentView: View {
                 
                 // Status & Language Header
                 HStack {
-                    if viewModel.isDownloadingModel {
+                    if store.isDownloadingModel {
                         HStack(spacing: 6) {
                             ProgressView()
                                 .controlSize(.small)
@@ -104,7 +104,7 @@ struct NativeSpeechContentView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-                    } else if viewModel.isPreparing {
+                    } else if store.isPreparing {
                         HStack(spacing: 6) {
                             ProgressView()
                                 .controlSize(.small)
@@ -115,13 +115,13 @@ struct NativeSpeechContentView: View {
                     } else {
                         HStack(spacing: 6) {
                             Circle()
-                                .fill(viewModel.isRecording ? Color.red : Color.gray)
+                                .fill(store.isRecording ? Color.red : Color.gray)
                                 .frame(width: 10, height: 10)
                             
-                            Text(viewModel.isRecording ? "Listening..." : (viewModel.isStopping ? "Stopping..." : "Idle"))
+                            Text(store.isRecording ? "Listening..." : (store.isStopping ? "Stopping..." : "Idle"))
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                                .foregroundStyle(viewModel.isRecording ? .red : .secondary)
+                                .foregroundStyle(store.isRecording ? .red : .secondary)
                         }
                     }
                     
@@ -129,13 +129,13 @@ struct NativeSpeechContentView: View {
                     
                     // Locale Selector Menu
                     Menu {
-                        ForEach(viewModel.supportedLocales) { item in
+                        ForEach(store.supportedLocales) { item in
                             Button {
-                                viewModel.updateLocaleAndRestart(identifier: item.identifier)
+                                store.updateLocaleAndRestart(identifier: item.identifier)
                             } label: {
                                 HStack {
                                     Text(item.name)
-                                    if SpeechLocaleHelper.isEquivalent(viewModel.selectedLocaleIdentifier, item.identifier) {
+                                    if SpeechLocaleHelper.isEquivalent(store.selectedLocaleIdentifier, item.identifier) {
                                         Image(systemName: "checkmark")
                                     } else if !item.isInstalled {
                                         Image(systemName: "icloud.and.arrow.down")
@@ -146,7 +146,7 @@ struct NativeSpeechContentView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "globe")
-                            Text(viewModel.selectedLocaleDisplayName)
+                            Text(store.selectedLocaleDisplayName)
                             Image(systemName: "chevron.up.chevron.down")
                                 .font(.caption2)
                         }
@@ -163,43 +163,42 @@ struct NativeSpeechContentView: View {
                 HStack {
                     HStack(spacing: 4) {
                         Image(systemName: "waveform.badge.magnifyingglass")
-                        Text(viewModel.engineDescription)
+                        Text(store.engineDescription)
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     
                     Spacer()
                     
-                    if !viewModel.tokens.isEmpty {
-                        Text("\(viewModel.tokens.count) tokens")
+                    if !store.tokens.isEmpty {
+                        Text("\(store.tokens.count) tokens")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(Color.gray.opacity(0.15)))
+                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                            .foregroundStyle(.secondary)
                     }
                 }
                 
                 // Full Transcript Section
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Full Transcript")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
+                        Text("Live Transcript")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
                         
                         Spacer()
                         
-                        if !viewModel.fullTranscript.isEmpty {
+                        if !store.fullTranscript.isEmpty {
                             HStack(spacing: 12) {
-                                Button {
-                                    UIPasteboard.general.string = viewModel.fullTranscript
-                                } label: {
-                                    Label("Copy", systemImage: "doc.on.doc")
+                                Button("Copy") {
+                                    UIPasteboard.general.string = store.fullTranscript
                                 }
                                 .font(.caption)
                                 
                                 Button("Clear") {
-                                    viewModel.clearTranscript()
+                                    store.clearTranscript()
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.red)
@@ -209,14 +208,14 @@ struct NativeSpeechContentView: View {
                     
                     ScrollViewReader { proxy in
                         ScrollView {
-                            Text(viewModel.fullTranscript.isEmpty ? "Transcription will appear here..." : viewModel.fullTranscript)
+                            Text(store.fullTranscript.isEmpty ? "Transcription will appear here..." : store.fullTranscript)
                                 .font(.body)
-                                .foregroundStyle(viewModel.fullTranscript.isEmpty ? .secondary : .primary)
+                                .foregroundStyle(store.fullTranscript.isEmpty ? .secondary : .primary)
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                                 .padding()
                                 .id("bottom")
                         }
-                        .onChange(of: viewModel.fullTranscript) {
+                        .onChange(of: store.fullTranscript) { _ in
                             withAnimation {
                                 proxy.scrollTo("bottom", anchor: .bottom)
                             }
@@ -241,13 +240,13 @@ struct NativeSpeechContentView: View {
                         .foregroundStyle(.secondary)
                     
                     HStack {
-                        Text(viewModel.partialText.isEmpty ? "—" : viewModel.partialText)
+                        Text(store.partialText.isEmpty ? "—" : store.partialText)
                             .font(.subheadline)
                             .italic()
-                            .foregroundStyle(viewModel.partialText.isEmpty ? .secondary : .primary)
+                            .foregroundStyle(store.partialText.isEmpty ? .secondary : .primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        if viewModel.isRecording && !viewModel.partialText.isEmpty {
+                        if store.isRecording && !store.partialText.isEmpty {
                             ProgressView()
                                 .controlSize(.small)
                         }
@@ -267,7 +266,7 @@ struct NativeSpeechContentView: View {
                 // Controls: Start / Stop Buttons
                 HStack(spacing: 16) {
                     Button {
-                        viewModel.start()
+                        store.start()
                     } label: {
                         Label("Start", systemImage: "mic.fill")
                             .font(.headline)
@@ -276,10 +275,10 @@ struct NativeSpeechContentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
-                    .disabled(viewModel.isRecording || viewModel.isStopping || viewModel.isPreparing)
+                    .disabled(store.isRecording || store.isStopping || store.isPreparing)
                     
                     Button {
-                        viewModel.stop()
+                        store.stop()
                     } label: {
                         Label("Stop", systemImage: "stop.fill")
                             .font(.headline)
@@ -288,7 +287,7 @@ struct NativeSpeechContentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
-                    .disabled(!viewModel.isRecording || viewModel.isStopping)
+                    .disabled(!store.isRecording || store.isStopping)
                 }
                 .padding(.top, 4)
             }
@@ -299,5 +298,5 @@ struct NativeSpeechContentView: View {
 }
 
 #Preview {
-    NativeSpeechContentView(viewModel: NativeSpeechViewModel())
+    NativeSpeechContentView(store: SpeechTranscriptionStore())
 }

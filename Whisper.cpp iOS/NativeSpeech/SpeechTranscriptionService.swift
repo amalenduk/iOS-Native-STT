@@ -31,6 +31,12 @@ public protocol SpeechTranscriptionService: AnyObject {
     /// Progress of the model download if applicable
     var downloadProgress: Progress? { get }
     
+    /// Callback for asynchronous runtime errors occurring during transcription
+    var onError: (@Sendable (Error) -> Void)? { get set }
+    
+    /// Callback fired whenever transcript text, tokens, or download state updates
+    var onTranscriptUpdate: (@Sendable () -> Void)? { get set }
+    
     /// Set up recognizer session for given locale
     func setUpTranscriber(locale: Locale) async throws
     
@@ -43,4 +49,3 @@ public protocol SpeechTranscriptionService: AnyObject {
     /// Clear all transcript states
     func clear()
 }
-

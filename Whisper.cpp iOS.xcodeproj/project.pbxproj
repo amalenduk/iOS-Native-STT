@@ -3,11 +3,8 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 71;
 	objects = {
-
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		04803B11309F289B00325CBE /* PBXContainerItemProxy */ = {
@@ -33,38 +30,32 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		04803B05309F289900325CBE /* Whisper.cpp iOS */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Whisper.cpp iOS";
-			sourceTree = "<group>";
-		};
-		04803B13309F289B00325CBE /* Whisper.cpp iOSTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Whisper.cpp iOSTests";
-			sourceTree = "<group>";
-		};
-		04803B1D309F289B00325CBE /* Whisper.cpp iOSUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Whisper.cpp iOSUITests";
-			sourceTree = "<group>";
-		};
+		04803B05309F289900325CBE /* Whisper.cpp iOS */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Whisper.cpp iOS"; sourceTree = "<group>"; };
+		04803B13309F289B00325CBE /* Whisper.cpp iOSTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Whisper.cpp iOSTests"; sourceTree = "<group>"; };
+		04803B1D309F289B00325CBE /* Whisper.cpp iOSUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "Whisper.cpp iOSUITests"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		04803B00309F289900325CBE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04803B0D309F289B00325CBE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04803B17309F289B00325CBE /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -101,6 +92,8 @@
 				04803B01309F289900325CBE /* Resources */,
 			);
 			buildRules = (
+			);
+			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
 				04803B05309F289900325CBE /* Whisper.cpp iOS */,
@@ -185,7 +178,6 @@
 			);
 			mainGroup = 04803AFA309F289900325CBE;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = 04803B04309F289900325CBE /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -200,36 +192,48 @@
 /* Begin PBXResourcesBuildPhase section */
 		04803B01309F289900325CBE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04803B0E309F289B00325CBE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04803B18309F289B00325CBE /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		04803AFF309F289900325CBE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04803B0C309F289B00325CBE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 		04803B16309F289B00325CBE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -247,7 +251,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		04803B20309F289B00325CBE /* Debug configuration for PBXProject "Whisper.cpp iOS" */ = {
+		04803B20309F289B00325CBE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -300,7 +304,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -311,7 +315,7 @@
 			};
 			name = Debug;
 		};
-		04803B21309F289B00325CBE /* Release configuration for PBXProject "Whisper.cpp iOS" */ = {
+		04803B21309F289B00325CBE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -358,7 +362,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -368,7 +372,7 @@
 			};
 			name = Release;
 		};
-		04803B23309F289B00325CBE /* Debug configuration for PBXNativeTarget "Whisper.cpp iOS" */ = {
+		04803B23309F289B00325CBE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -385,7 +389,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -403,7 +407,7 @@
 			};
 			name = Debug;
 		};
-		04803B24309F289B00325CBE /* Release configuration for PBXNativeTarget "Whisper.cpp iOS" */ = {
+		04803B24309F289B00325CBE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -420,7 +424,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -438,7 +442,7 @@
 			};
 			name = Release;
 		};
-		04803B26309F289B00325CBE /* Debug configuration for PBXNativeTarget "Whisper.cpp iOSTests" */ = {
+		04803B26309F289B00325CBE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -446,7 +450,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C96D8ZQ5VQ;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.akplayer.example.Whisper-cpp-iOSTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -460,7 +464,7 @@
 			};
 			name = Debug;
 		};
-		04803B27309F289B00325CBE /* Release configuration for PBXNativeTarget "Whisper.cpp iOSTests" */ = {
+		04803B27309F289B00325CBE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -468,7 +472,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C96D8ZQ5VQ;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.akplayer.example.Whisper-cpp-iOSTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -482,14 +486,14 @@
 			};
 			name = Release;
 		};
-		04803B29309F289B00325CBE /* Debug configuration for PBXNativeTarget "Whisper.cpp iOSUITests" */ = {
+		04803B29309F289B00325CBE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C96D8ZQ5VQ;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.akplayer.example.Whisper-cpp-iOSUITests";
@@ -507,14 +511,14 @@
 			};
 			name = Debug;
 		};
-		04803B2A309F289B00325CBE /* Release configuration for PBXNativeTarget "Whisper.cpp iOSUITests" */ = {
+		04803B2A309F289B00325CBE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = C96D8ZQ5VQ;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.akplayer.example.Whisper-cpp-iOSUITests";
@@ -538,33 +542,37 @@
 		04803AFE309F289900325CBE /* Build configuration list for PBXProject "Whisper.cpp iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				04803B20309F289B00325CBE /* Debug configuration for PBXProject "Whisper.cpp iOS" */,
-				04803B21309F289B00325CBE /* Release configuration for PBXProject "Whisper.cpp iOS" */,
+				04803B20309F289B00325CBE /* Debug */,
+				04803B21309F289B00325CBE /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		04803B22309F289B00325CBE /* Build configuration list for PBXNativeTarget "Whisper.cpp iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				04803B23309F289B00325CBE /* Debug configuration for PBXNativeTarget "Whisper.cpp iOS" */,
-				04803B24309F289B00325CBE /* Release configuration for PBXNativeTarget "Whisper.cpp iOS" */,
+				04803B23309F289B00325CBE /* Debug */,
+				04803B24309F289B00325CBE /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		04803B25309F289B00325CBE /* Build configuration list for PBXNativeTarget "Whisper.cpp iOSTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				04803B26309F289B00325CBE /* Debug configuration for PBXNativeTarget "Whisper.cpp iOSTests" */,
-				04803B27309F289B00325CBE /* Release configuration for PBXNativeTarget "Whisper.cpp iOSTests" */,
+				04803B26309F289B00325CBE /* Debug */,
+				04803B27309F289B00325CBE /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		04803B28309F289B00325CBE /* Build configuration list for PBXNativeTarget "Whisper.cpp iOSUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				04803B29309F289B00325CBE /* Debug configuration for PBXNativeTarget "Whisper.cpp iOSUITests" */,
-				04803B2A309F289B00325CBE /* Release configuration for PBXNativeTarget "Whisper.cpp iOSUITests" */,
+				04803B29309F289B00325CBE /* Debug */,
+				04803B2A309F289B00325CBE /* Release */,
 			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */

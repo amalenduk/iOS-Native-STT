@@ -9,14 +9,14 @@ import AVFoundation
 import Foundation
 
 @MainActor
-final class NativeSpeechRecorder {
+public final class NativeSpeechRecorder {
     
-    enum RecorderError: LocalizedError {
+    public enum RecorderError: LocalizedError {
         case microphonePermissionDenied
         case engineStartFailed(String)
         case invalidAudioFormat
         
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case .microphonePermissionDenied:
                 return "Microphone access was denied. Please enable it in Settings."
@@ -30,9 +30,11 @@ final class NativeSpeechRecorder {
     
     private let audioEngine = AVAudioEngine()
     private var outputContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
-    private(set) var isRecording = false
+    public private(set) var isRecording = false
     
-    func startStreaming() async throws -> AsyncStream<AVAudioPCMBuffer> {
+    public init() {}
+    
+    public func startStreaming() async throws -> AsyncStream<AVAudioPCMBuffer> {
         guard await requestMicrophonePermission() else {
             throw RecorderError.microphonePermissionDenied
         }
@@ -77,7 +79,7 @@ final class NativeSpeechRecorder {
         }
     }
     
-    func stop() {
+    public func stop() {
         guard isRecording || outputContinuation != nil else { return }
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
@@ -105,4 +107,3 @@ final class NativeSpeechRecorder {
         }
     }
 }
-
