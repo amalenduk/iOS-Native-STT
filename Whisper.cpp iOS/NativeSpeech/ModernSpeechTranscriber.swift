@@ -46,6 +46,7 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
     private var inputSequence: AsyncStream<AnalyzerInput>?
     private var inputBuilder: AsyncStream<AnalyzerInput>.Continuation?
     private var transcriber: SpeechTranscriber?
+    private var dictationTranscriber: DictationTranscriber?
     private var analyzer: SpeechAnalyzer?
     private var recognizerTask: Task<Void, Never>?
     
@@ -80,7 +81,10 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         clearAppTemporaryDirectory()
         
         // 1. Resolve matching locale among supported
-        let supported = await SpeechTranscriber.supportedLocales
+        let speechLocales = SpeechTranscriber.isAvailable ? await SpeechTranscriber.supportedLocales : []
+        let useDictation = !SpeechTranscriber.isAvailable || speechLocales.isEmpty
+        let supported = useDictation ? await DictationTranscriber.supportedLocales : speechLocales
+        guard !supported.isEmpty else { throw ModernTranscriptionError.localeNotSupported }
         let supportedIDs = supported.map { $0.identifier(.bcp47) }
         let resolvedID = SpeechLocaleHelper.findBestMatchingLocale(
             for: locale.identifier(.bcp47),
@@ -103,63 +107,45 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         }
         
         // 4. Ensure model is installed, or download it if needed
-        try await ensureModel(locale: targetLocale)
+        if useDictation {
+            try await ensureDictationModel(locale: targetLocale)
+        } else {
+            try await ensureModel(locale: targetLocale)
+        }
         
         // 5. Instantiate transcriber and analyzer with the now-allocated locale
-        let transcriber = SpeechTranscriber(
-            locale: targetLocale,
-            transcriptionOptions: [],
-            reportingOptions: [.volatileResults],
-            attributeOptions: [.audioTimeRange]
-        )
-        self.transcriber = transcriber
-        
-        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        let module: any SpeechModule
+        if useDictation {
+            let dictation = DictationTranscriber(
+                locale: targetLocale,
+                contentHints: [],
+                transcriptionOptions: [.punctuation],
+                reportingOptions: [.volatileResults, .frequentFinalization],
+                attributeOptions: [.audioTimeRange]
+            )
+            self.dictationTranscriber = dictation
+            module = dictation
+            startResultProcessing(dictation, locale: targetLocale)
+        } else {
+            let speech = SpeechTranscriber(
+                locale: targetLocale,
+                transcriptionOptions: [],
+                reportingOptions: [.volatileResults],
+                attributeOptions: [.audioTimeRange]
+            )
+            self.transcriber = speech
+            module = speech
+            startResultProcessing(speech, locale: targetLocale)
+        }
+
+        let analyzer = SpeechAnalyzer(modules: [module])
         self.analyzer = analyzer
         
-        self.analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
+        self.analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module])
         
         let (stream, builder) = AsyncStream<AnalyzerInput>.makeStream()
         self.inputSequence = stream
         self.inputBuilder = builder
-        
-        recognizerTask = Task { [weak self] in
-            do {
-                for try await result in transcriber.results {
-                    guard let self else { break }
-                    let text = String(result.text.characters)
-                    
-                    // Extract tokens from words
-                    let words = text.split(separator: " ").map { String($0) }
-                    self.tokens = words.map { SpeechTranscriptionToken(text: $0) }
-                    
-                    if result.isFinal {
-                        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !trimmed.isEmpty {
-                            if self.finalizedText.isEmpty {
-                                self.finalizedText = trimmed
-                            } else {
-                                self.finalizedText += " " + trimmed
-                            }
-                        }
-                        self.volatileText = ""
-                    } else {
-                        self.volatileText = text
-                    }
-                    
-                    self.onTranscriptUpdate?()
-                }
-            } catch {
-                SpeechLog.modern.error("SpeechAnalyzer recognition stream error: \(error.localizedDescription)")
-                let desc = error.localizedDescription
-                let isNoSpace = desc.localizedCaseInsensitiveContains("No space left on device")
-                    || (error as NSError).domain == "EARErrorDomain" && (error as NSError).code == 201
-                let reported: Error = isNoSpace
-                    ? ModernTranscriptionError.insufficientStorage(targetLocale.identifier(.bcp47))
-                    : error
-                self?.onError?(reported)
-            }
-        }
         
         do {
             try await analyzer.start(inputSequence: stream)
@@ -170,6 +156,72 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
                 throw ModernTranscriptionError.insufficientStorage(targetLocale.identifier(.bcp47))
             }
             throw error
+        }
+    }
+
+    private func startResultProcessing(_ transcriber: SpeechTranscriber, locale: Locale) {
+        recognizerTask = Task { [weak self] in
+            do {
+                for try await result in transcriber.results {
+                    guard let self else { break }
+                    let text = String(result.text.characters)
+                    self.applyResult(text: text, isFinal: result.isFinal)
+                }
+            } catch {
+                self?.reportRecognitionError(error, locale: locale)
+            }
+        }
+    }
+
+    private func startResultProcessing(_ transcriber: DictationTranscriber, locale: Locale) {
+        recognizerTask = Task { [weak self] in
+            do {
+                for try await result in transcriber.results {
+                    guard let self else { break }
+                    self.applyResult(text: String(result.text.characters), isFinal: result.isFinal)
+                }
+            } catch {
+                self?.reportRecognitionError(error, locale: locale)
+            }
+        }
+    }
+
+    private func applyResult(text: String, isFinal: Bool) {
+        tokens = text.split(separator: " ").map { SpeechTranscriptionToken(text: String($0)) }
+        if isFinal {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                finalizedText = finalizedText.isEmpty ? trimmed : finalizedText + " " + trimmed
+            }
+            volatileText = ""
+        } else {
+            volatileText = text
+        }
+        onTranscriptUpdate?()
+    }
+
+    private func reportRecognitionError(_ error: Error, locale: Locale) {
+        SpeechLog.modern.error("SpeechAnalyzer recognition stream error: \(error.localizedDescription)")
+        let desc = error.localizedDescription
+        let isNoSpace = desc.localizedCaseInsensitiveContains("No space left on device")
+            || (error as NSError).domain == "EARErrorDomain" && (error as NSError).code == 201
+        onError?(isNoSpace ? ModernTranscriptionError.insufficientStorage(locale.identifier(.bcp47)) : error)
+    }
+
+    private func ensureDictationModel(locale: Locale) async throws {
+        let supported = await DictationTranscriber.supportedLocales
+        guard supported.contains(where: { SpeechLocaleHelper.isEquivalent($0.identifier(.bcp47), locale.identifier(.bcp47)) }) else {
+            throw ModernTranscriptionError.localeNotSupported
+        }
+        let installed = await DictationTranscriber.installedLocales
+        guard !installed.contains(where: { SpeechLocaleHelper.isEquivalent($0.identifier(.bcp47), locale.identifier(.bcp47)) }) else { return }
+        let module = DictationTranscriber(locale: locale, preset: .progressiveLongDictation)
+        if let request = try await AssetInventory.assetInstallationRequest(supporting: [module]) {
+            downloadProgress = request.progress
+            isDownloadingModel = true
+            onTranscriptUpdate?()
+            defer { isDownloadingModel = false; onTranscriptUpdate?() }
+            try await request.downloadAndInstall()
         }
     }
     
@@ -195,6 +247,7 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
         
         self.analyzer = nil
         self.transcriber = nil
+        self.dictationTranscriber = nil
         
         // Release locale reservations to prevent holding allocation slots
         await releaseAllReservedLocales()
@@ -202,6 +255,13 @@ public final class ModernSpeechTranscriber: SpeechTranscriptionService {
     
     public func clear() {
         finalizedText = ""
+        volatileText = ""
+        tokens = []
+        onTranscriptUpdate?()
+    }
+
+    public func setInitialTranscript(_ text: String) {
+        finalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         volatileText = ""
         tokens = []
         onTranscriptUpdate?()

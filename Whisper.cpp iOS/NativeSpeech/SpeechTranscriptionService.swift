@@ -48,4 +48,7 @@ public protocol SpeechTranscriptionService: AnyObject {
     
     /// Clear all transcript states
     func clear()
+
+    /// Seed accumulated transcript text from the host editor when the speech UI is created.
+    func setInitialTranscript(_ text: String)
 }

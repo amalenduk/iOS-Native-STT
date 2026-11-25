@@ -23,6 +23,7 @@ struct CompactSpeechBarView: View {
     
     // Internal snapshot for non-destructive appending
     @State private var baseTextSnapshot: String = ""
+    @State private var transcriptAtSessionStart: String = ""
     @State private var showingErrorAlert: Bool = false
     @State private var isPulsing: Bool = false
     
@@ -64,12 +65,12 @@ struct CompactSpeechBarView: View {
         .padding(.vertical, 8)
         .background(
             Capsule()
-                .fill(Color(uiColor: .secondarySystemBackground))
+                .fill(SwiftUI.Color(uiColor: .secondarySystemBackground))
                 .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
         )
         .overlay(
             Capsule()
-                .strokeBorder(store.isRecording ? Color.red.opacity(0.35) : Color.gray.opacity(0.18), lineWidth: 1)
+                .strokeBorder(store.isRecording ? SwiftUI.Color.red.opacity(0.35) : SwiftUI.Color.gray.opacity(0.18), lineWidth: 1)
         )
         // Self-contained Error Alert
         .alert("Speech Recognition", isPresented: $showingErrorAlert) {
@@ -97,16 +98,16 @@ struct CompactSpeechBarView: View {
     private var languageMenuButton: some View {
         Menu {
             Section("Supported Languages (\(store.supportedLocales.count))") {
-                ForEach(store.supportedLocales) { item in
+                ForEach(store.supportedLocales, id: \.identifier) { item in
                     Button {
                         store.updateLocaleAndRestart(identifier: item.identifier)
                     } label: {
                         HStack {
                             Text(item.name)
                             if SpeechLocaleHelper.isEquivalent(store.selectedLocaleIdentifier, item.identifier) {
-                                Image(systemName: "checkmark")
+                                SwiftUI.Image(systemName: "checkmark")
                             } else if !item.isInstalled {
-                                Image(systemName: "icloud.and.arrow.down")
+                                SwiftUI.Image(systemName: "icloud.and.arrow.down")
                             }
                         }
                     }
@@ -127,12 +128,12 @@ struct CompactSpeechBarView: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: "globe")
+                SwiftUI.Image(systemName: "globe")
                     .font(.caption2)
                 Text(shortLanguageCode)
                     .font(.caption)
                     .fontWeight(.bold)
-                Image(systemName: "chevron.up.chevron.down")
+                SwiftUI.Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 8, weight: .semibold))
             }
             .foregroundStyle(store.isRecording ? .secondary : .primary)
@@ -140,7 +141,7 @@ struct CompactSpeechBarView: View {
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(Color(uiColor: .tertiarySystemBackground))
+                    .fill(SwiftUI.Color(uiColor: .tertiarySystemBackground))
             )
         }
         .disabled(store.isRecording)
@@ -164,7 +165,7 @@ struct CompactSpeechBarView: View {
             } else if store.isRecording {
                 // Pulsing red indicator
                 Circle()
-                    .fill(Color.red)
+                    .fill(SwiftUI.Color.red)
                     .frame(width: 8, height: 8)
                     .scaleEffect(isPulsing ? 1.25 : 0.85)
                     .opacity(isPulsing ? 1.0 : 0.6)
@@ -210,18 +211,18 @@ struct CompactSpeechBarView: View {
             ZStack {
                 if store.isRecording {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white)
+                        .fill(SwiftUI.Color.white)
                         .frame(width: 12, height: 12)
                 } else {
-                    Image(systemName: "mic.fill")
+                    SwiftUI.Image(systemName: "mic.fill")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                 }
             }
             .frame(width: 32, height: 32)
-            .background(store.isRecording ? Color.red : Color.blue)
+            .background(store.isRecording ? SwiftUI.Color.red : SwiftUI.Color.blue)
             .clipShape(Circle())
-            .shadow(color: (store.isRecording ? Color.red : Color.blue).opacity(0.3), radius: 4, x: 0, y: 1)
+            .shadow(color: (store.isRecording ? SwiftUI.Color.red : SwiftUI.Color.blue).opacity(0.3), radius: 4, x: 0, y: 1)
         }
         .buttonStyle(.plain)
     }
@@ -242,14 +243,17 @@ struct CompactSpeechBarView: View {
             if hasExternalBinding {
                 self.baseTextSnapshot = externalText
             }
-            store.clearTranscript()
+            transcriptAtSessionStart = store.fullTranscript
             store.start()
         }
     }
     
     private func handleTranscriptUpdate(_ fullTranscript: String) {
         guard store.isRecording else { return }
-        let speech = fullTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sessionText = fullTranscript.hasPrefix(transcriptAtSessionStart)
+            ? String(fullTranscript.dropFirst(transcriptAtSessionStart.count))
+            : fullTranscript
+        let speech = sessionText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !speech.isEmpty else { return }
         
         if hasExternalBinding {
@@ -273,6 +277,5 @@ struct CompactSpeechBarView: View {
         if hasExternalBinding {
             self.baseTextSnapshot = externalText
         }
-        store.clearTranscript()
     }
 }

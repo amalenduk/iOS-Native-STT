@@ -67,8 +67,13 @@ public enum SpeechLocaleHelper {
         
         if mode == .modern {
             if #available(iOS 26.0, macOS 26.0, *) {
-                let supported = await SpeechTranscriber.supportedLocales
-                let installed = await Set(SpeechTranscriber.installedLocales.map { $0.identifier(.bcp47) })
+                let speechLocales = SpeechTranscriber.isAvailable ? await SpeechTranscriber.supportedLocales : []
+                let useDictation = !SpeechTranscriber.isAvailable || speechLocales.isEmpty
+                let supported = useDictation ? await DictationTranscriber.supportedLocales : speechLocales
+                let installedLocales = useDictation
+                    ? await DictationTranscriber.installedLocales
+                    : await SpeechTranscriber.installedLocales
+                let installed = Set(installedLocales.map { $0.identifier(.bcp47) })
                 let current = Locale.current
                 
                 if !supported.isEmpty {

@@ -32,6 +32,7 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var isFinishing = false
     
     // States for Store sync
     public var finalizedText: String = ""
@@ -77,20 +78,18 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
         }
         self.speechRecognizer = recognizer
         
-        // 3. Configure audio buffer request
+        isFinishing = false
+        startRecognitionRequest()
+    }
+
+    private func startRecognitionRequest() {
+        guard let recognizer = speechRecognizer, !isFinishing else { return }
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        
-        // Attempt on-device recognition if available for speed and privacy
-        if recognizer.supportsOnDeviceRecognition {
-            request.requiresOnDeviceRecognition = true
-        } else {
-            request.requiresOnDeviceRecognition = false
-        }
-        self.recognitionRequest = request
-        
-        // 4. Start recognition task
-        self.recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+        request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+        recognitionRequest = request
+
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self else { return }
             
             if let result {
@@ -104,17 +103,21 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
                     )
                 }
                 self.tokens = segmentTokens
-                
+
+                let startsNewUtterance = self.isNewUtterance(
+                    previous: self.volatileText,
+                    incoming: formatted
+                )
+                if startsNewUtterance {
+                    self.appendFinalizedText(self.volatileText)
+                }
+
                 if result.isFinal {
-                    let trimmed = formatted.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty {
-                        if self.finalizedText.isEmpty {
-                            self.finalizedText = trimmed
-                        } else {
-                            self.finalizedText += " " + trimmed
-                        }
-                    }
+                    self.appendFinalizedText(formatted)
                     self.volatileText = ""
+                    self.recognitionTask = nil
+                    self.recognitionRequest = nil
+                    self.startRecognitionRequest()
                 } else {
                     self.volatileText = formatted
                 }
@@ -128,6 +131,32 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
             }
         }
     }
+
+    /// SFSpeech can begin a fresh utterance after a pause without first marking the
+    /// preceding partial result final. Detect that reset and commit the old hypothesis.
+    private func isNewUtterance(previous: String, incoming: String) -> Bool {
+        let oldWords = normalizedWords(previous)
+        let newWords = normalizedWords(incoming)
+        guard !oldWords.isEmpty, !newWords.isEmpty else { return false }
+
+        // Partial hypotheses can revise their opening words ("summer in" to
+        // "somewhere in"). Any meaningful word overlap is evidence that SFSpeech
+        // is revising the same utterance, so replace the volatile hypothesis instead
+        // of committing the earlier, less accurate wording.
+        return Set(oldWords).isDisjoint(with: Set(newWords))
+    }
+
+    private func normalizedWords(_ text: String) -> [String] {
+        text.split(whereSeparator: \.isWhitespace).map {
+            $0.lowercased().trimmingCharacters(in: .punctuationCharacters)
+        }.filter { !$0.isEmpty }
+    }
+
+    private func appendFinalizedText(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        finalizedText = finalizedText.isEmpty ? trimmed : finalizedText + " " + trimmed
+    }
     
     /// Streams audio buffer directly to SFSpeechAudioBufferRecognitionRequest with zero conversion overhead
     public func streamAudioBuffer(_ buffer: AVAudioPCMBuffer) throws {
@@ -138,6 +167,7 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
     }
     
     public func finishTranscribing() async throws {
+        isFinishing = true
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         
@@ -150,6 +180,13 @@ public final class LegacySpeechTranscriber: SpeechTranscriptionService {
     
     public func clear() {
         finalizedText = ""
+        volatileText = ""
+        tokens = []
+        onTranscriptUpdate?()
+    }
+
+    public func setInitialTranscript(_ text: String) {
+        finalizedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         volatileText = ""
         tokens = []
         onTranscriptUpdate?()

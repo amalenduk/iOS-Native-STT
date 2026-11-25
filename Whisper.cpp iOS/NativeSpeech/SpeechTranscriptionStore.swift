@@ -172,6 +172,15 @@ final class SpeechTranscriptionStore: ObservableObject {
         syncTranscriptFromService()
         errorMessage = nil
     }
+
+    /// Initialize the accumulated transcript from text already owned by the host view.
+    func setInitialTranscript(_ text: String) {
+        // SwiftUI may recreate the bar value while retaining its observed store. Seeding
+        // again in that case would erase speech already accumulated by the service.
+        guard transcriber.fullTranscript.isEmpty else { return }
+        transcriber.setInitialTranscript(text)
+        syncTranscriptFromService()
+    }
     
     /// Clears any active error message
     func clearError() {

@@ -16,7 +16,7 @@ import SwiftUI
 ///   and speak to insert or dictate text directly at the cursor.
 /// - Can be hosted directly above the keyboard via `inputAccessoryView` or pinned to the screen bottom.
 /// - Errors (storage full, permissions, recognizer unavailable) pop up automatically inside the compact bar.
-final class LegacyNotesEditorViewController: UIViewController {
+final class LegacyNotesEditorViewController: UIViewController, UITextViewDelegate {
     
     // MARK: - UI Elements
     
@@ -55,6 +55,7 @@ final class LegacyNotesEditorViewController: UIViewController {
     // MARK: - Setup
     
     private func setupTextView() {
+        textView.delegate = self
         view.addSubview(textView)
         
         NSLayoutConstraint.activate([
@@ -63,6 +64,12 @@ final class LegacyNotesEditorViewController: UIViewController {
             textView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             textView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor, constant: -12)
         ])
+    }
+
+    func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        guard text == "\n" else { return true }
+        textView.resignFirstResponder()
+        return false
     }
     
     /// Attaches CompactSpeechBarLegacyView directly above the keyboard as an inputAccessoryView
